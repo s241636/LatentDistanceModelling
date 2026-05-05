@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+from sklearn.decomposition import PCA
 
 from DataLoader import DataLoader
 from EdgeSampler import sample_edges
@@ -13,19 +14,26 @@ from LatentDistanceModel import LatentDistanceModel
 
 # %% HYPERPARAMETERs
 subset_percent = 0.1
-k = 20  # K-nearest-neighbors
+k = 5  # K-nearest-neighbors
 lr = 0.05
 weight_decay = 1e-4
 batch_size = None  # Virker ekstremt dårligt ud fra tests. Skal nok bare undgås at bruge.
 patience = 50
 min_delta = 1e-4
+pca_n = 50
 
 loader = DataLoader()
 constructor = GraphConstructor()
 X, y = loader.load_MNIST(subset_percent=subset_percent)
-adjacency_matrix = constructor.construct_knn(X, k_neighbors=k)
+pca = PCA(n_components=pca_n)
+X = pca.fit_transform(X.numpy())
+X = torch.Tensor(X)
+print(X.shape)
+adjacency_matrix = constructor.construct_knn(X, k_neighbors=k, undirected=False)
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# %%
+device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
 adjacency_matrix = adjacency_matrix.to(device)
 
 ldm = LatentDistanceModel(adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2).to(device)
@@ -68,5 +76,6 @@ for epoch in range(epochs):
 elapsed = time.time() - t0
 print(f"Training took {elapsed:.2f}s")
 
-save_path = f"evals/subset {subset_percent}|k {k}|epochs {epoch}|batch_size {batch_size}|lr {lr}|wd{weight_decay}.jpg"
-ldm.visualize(save_path=save_path, show=False)
+ldm.visualize()
+
+# %%

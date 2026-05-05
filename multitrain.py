@@ -78,5 +78,5 @@ for undirected in [True, False]:
             print(f"Training took {elapsed:.2f}s")
 
             # --- 4. Visualize Results ---
-            save_path = f"evals/model0/undirected {undirected}|subset {subset_percent}|k {k}|epochs {epoch}|loss{best_loss}|time {elapsed:.2f}|.jpg"
+            save_path = f"evals/model0/undirected {undirected}|subset {subset_percent}|k {k}|epochs {epoch}|loss{best_loss:.6f}|time {elapsed:.2f}|.jpg"
             ldm.visualize(save_path=save_path, show=False)

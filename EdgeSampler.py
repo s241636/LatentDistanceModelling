@@ -1,7 +1,7 @@
 import torch
 
 # AI-GENERATED
-# PROMPT:
+# PROMPT (DeepSeek V4 Pro):
 # "Create a standalone helper function, for negative sampling. 
 # It should take an adjacency matrix, and return the senders recievers and targets. 
 # It should also be able to take a batch size, such that it doesn't train on the entire set of positive edges, but can also take a subsample of this.""

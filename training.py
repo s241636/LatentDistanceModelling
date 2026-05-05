@@ -25,18 +25,22 @@ pca_n = 50
 loader = DataLoader()
 constructor = GraphConstructor()
 X, y = loader.load_MNIST(subset_percent=subset_percent)
-pca = PCA(n_components=pca_n)
-X = torch.tensor(pca.fit_transform(X), dtype=torch.float32)
+# pca = PCA(n_components=pca_n)
+# X = pca.fit_transform(X.numpy())
+# X = torch.Tensor(X)
+# print(X.shape)
+adjacency_matrix = constructor.construct_knn(X, k_neighbors=k, undirected=False)
 
-adjacency_matrix = constructor.construct_knn(X, k_neighbors=k, undirected=True)
+
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'mps')
+# %%
 adjacency_matrix = adjacency_matrix.to(device)
-ldm = LatentDistanceModel(adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2,data=X).to(device)
+
+
+ldm = LatentDistanceModel(adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2).to(device)
 loss_fn = nn.BCEWithLogitsLoss()
 optimizer = torch.optim.Adam(ldm.parameters(), lr=lr, weight_decay=weight_decay)
-
-
-# %%
 
 
 # %%
@@ -49,7 +53,7 @@ t0 = time.time()
 for epoch in range(epochs):
     optimizer.zero_grad()
 
-    batch_senders, batch_receivers, targets = sample_edges(adjacency_matrix, batch_size=batch_size, neg_ratio=5.0)
+    batch_senders, batch_receivers, targets = sample_edges(adjacency_matrix, batch_size=batch_size)
 
     logits = ldm(batch_senders, batch_receivers)
 
@@ -60,7 +64,6 @@ for epoch in range(epochs):
 
     if epoch % 10 == 0:
         print(f"Epoch {epoch:4d} | Loss: {loss.item():.4f} | Alpha: {ldm.alpha.item():.4f}")
-        # print(f"Epoch {epoch:4d} | Loss: {loss.item():.4f}")
 
     if loss.item() < best_loss - min_delta:
         best_loss = loss.item()
@@ -76,5 +79,9 @@ elapsed = time.time() - t0
 print(f"Training took {elapsed:.2f}s")
 
 ldm.visualize()
-# %%
-ldm.beta
+
+
+
+
+
+

@@ -16,39 +16,21 @@ class LatentDistanceModel(nn.Module):
         adjacency_matrix: torch.Tensor,
         data_labels: np.ndarray,
         output_dimension: int = 2,
-        data: torch.Tensor = None,
-        # data: torch.Tensor | None = None,
     ) -> None:
         
         super().__init__()
         self.adjacency_matrix = adjacency_matrix.to(torch.float32)
         self.num_nodes = adjacency_matrix.shape[0]
         self.data_labels = data_labels
-        self.device = adjacency_matrix.device
-
 
         # Embedding lag, har alle N datapunker, hvert med en position i output_dimension space.
         self.Z = nn.Embedding(num_embeddings=self.num_nodes, embedding_dim=output_dimension)
 
-        # Til at initialiserer Z med PCA. Gør ikke rigtigt forskel, og kan skygge over andre
-        # reelle forbedringer.
-        # if data is not None:
-        #     from sklearn.decomposition import PCA
-        #     pca = PCA(n_components=output_dimension)
-        #     Z_init = pca.fit_transform(data.cpu().numpy())
-        #     self.Z.weight.data = torch.tensor(Z_init, dtype=torch.float32)
-        # else:
+        # Initialiserer dem tilfældigt
         nn.init.normal_(self.Z.weight, mean=0.0, std=0.1)
 
         # Alpha som også skal læres
         self.alpha = nn.Parameter(torch.tensor(0.0))
-        self.covariates = torch.tensor(data, device=self.device)
-
-        # dist = torch.cdist(data, data, p=2)
-        # dist = (dist - dist.min()) / (dist.max() - dist.min())
-        # self.covariates = torch.tensor(dist, device=self.device, requires_grad=False)
-        # self.beta = nn.Parameter(torch.zeros(len(self.covariates[0])))
-        self.beta = nn.Parameter(torch.tensor(0.0))
 
     def forward(self, sender_indices, receiver_indices) -> torch.Tensor:
         
@@ -59,16 +41,6 @@ class LatentDistanceModel(nn.Module):
         distances = torch.norm(z_i - z_j, p=2, dim=1)
 
         # Udregner log odds
-        # logits = self.alpha - distances
-        # logits = (
-        #     self.alpha
-        #     + (self.covariates[sender_indices] - self.covariates[receiver_indices]) @ self.beta.T - distances
-        # )
-        # logits = (
-        #     self.alpha + self.beta * self.covariates[sender_indices, receiver_indices] - distances
-        # )
-        
-
         logits = self.alpha - distances
         return logits
 

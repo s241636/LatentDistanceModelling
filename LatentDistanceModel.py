@@ -17,6 +17,8 @@ from GraphConstructor import GraphConstructor
 # Tanker
 # - Først prøver jeg bare at alpha = 0, og beta = 0, for at lave den simpleste model som muligt.
 # - Send ting til device
+# - Grafen vi laver skal vel netop være symmetrisk? Hele ideen med reciprocity er jo at der i den originale graf
+# - vil en edge imellem begge punkter, hvis det er tæt på hinanden.
 
 # %%
 #https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
@@ -39,7 +41,6 @@ class LatentDistanceModel(nn.Module):
     
     def forward(self):
         logits = self.alpha + self.beta * self.covariates - torch.cdist(self.Z, self.Z) # Logodds for each edge
-        # logits = self.alpha + self.beta * self.covariates - torch.cdist(self.Z[i], self.Z[j]) # Logodds for each edge
         return logits
     
     def visualize(self):
@@ -50,37 +51,48 @@ class LatentDistanceModel(nn.Module):
             plt.scatter(x,y)
 
 
-loader = DataLoader()
-constructor = GraphConstructor()
-X, y = loader.load_MNIST(subset_percent=0.01)
-adjacency_matrix = constructor.construct_knn(X, k_neighbors=100)
-ldm = LatentDistanceModel(adjacency_matrix=adjacency_matrix, data_labels=y)
+class LatentDistanceModelAI(nn.Module):
+    def __init__(
+        self, num_nodes: int, data_labels: np.ndarray, output_dimension: int = 2
+    ) -> None:
+        super().__init__()
+        self.num_nodes = num_nodes
+        self.data_labels = data_labels
 
-eye_mask = torch.eye(ldm.N, dtype=torch.bool, device=ldm.Z.device)
-m = nn.Sigmoid()
-loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(ldm.N / 100))
-optimizer = torch.optim.Adam(ldm.parameters(), lr=1e-3)
-for i in range(3000):
-    optimizer.zero_grad()
-    
-    # Get raw log-odds (no sigmoid!)
-    logits = ldm.forward()
-    
-    # 6. Apply mask: We only calculate loss for non-diagonal elements
-    logits_masked = logits[~eye_mask]
-    targets_masked = ldm.adjacency_matrix[~eye_mask]
-    
-    loss = loss_fn(logits_masked, targets_masked)
-    
-    if i % 100 == 0:
-        print(f"Step {i}, Loss: {loss.item():.4f}, Alpha: {ldm.alpha.item():.4f}")
-    
-    loss.backward()
-    optimizer.step()
+        # 1. The Embedding Layer for Latent Positions
+        # This automatically registers the coordinates as learnable parameters.
+        self.Z = nn.Embedding(num_embeddings=num_nodes, embedding_dim=output_dimension)
 
-ldm.visualize()
+        # We initialize the embeddings with a small spread around the origin
+        nn.init.normal_(self.Z.weight, mean=0.0, std=0.1)
 
+        # 2. Learnable Baseline Density (Alpha)
+        # Defined as a pure scalar (0-dimensional tensor)
+        self.alpha = nn.Parameter(torch.tensor(0.0))
 
+    def forward(self, sender_indices, receiver_indices):
+        # Retrieve the specific latent vectors for the batch
+        z_i = self.Z(sender_indices)
+        z_j = self.Z(receiver_indices)
 
+        # Calculate Euclidean distance between the pairs
+        distances = torch.norm(z_i - z_j, p=2, dim=1)
 
+        # Calculate log-odds
+        logits = self.alpha - distances
+        return logits
 
+    def visualize(self):
+        # Extract the coordinates from the embedding layer
+        vis_data = self.Z.weight.detach().cpu().numpy()
+
+        plt.figure(figsize=(8, 8))
+        # Assuming MNIST labels (0-9)
+        for i in range(10):
+            grouped = vis_data[self.data_labels == i]
+            x, y = grouped[:, 0], grouped[:, 1]
+            plt.scatter(x, y, label=str(i), alpha=0.6, edgecolors="w")
+
+        plt.title("Latent Space Visualization")
+        plt.legend()
+        plt.show()

@@ -34,7 +34,7 @@ for undirected in [True, False]:
             adjacency_matrix = adjacency_matrix.to(device)
 
             ldm = LatentDistanceModel(
-                adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2
+                adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2, data=X
             ).to(device)
             loss_fn = nn.BCEWithLogitsLoss()
             optimizer = torch.optim.Adam(ldm.parameters(), lr=lr, weight_decay=weight_decay)

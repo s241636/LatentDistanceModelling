@@ -7,3 +7,6 @@ tanker.md
 evals
 paper.md
 optimal_model.md
+comparison.png
+.gitignore
+comparison.py

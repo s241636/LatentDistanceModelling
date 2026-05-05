@@ -37,7 +37,7 @@ class GraphConstructor:
             k_neighbors (int): Mængden af edges for hvert node, altså mængden af neighbors i latent space.
             undirected (bool): Om grafen er directed eller ej. I tilfælde af undirected=True kan det ikke garanteres
             at hvert node har 'k' edges, eftersom der kan blive tilføjet edges for at gør den symmetrisk. Er dog nok heller aldrig
-            optimalt at have grafen undirected.
+            optimalt at have grafen undirected. Bliver da til shared nearest neighbors
 
         Returns:
             np.ndarray: Adjacency matrix over grafen.
@@ -45,14 +45,9 @@ class GraphConstructor:
         node_count = data.shape[0]
         
         adjacency_matrix = torch.zeros(node_count, node_count, dtype=torch.uint8)
-        
 
-        # Compute all pairwise Euclidean distances between observed feature vectors.
+        # Finder de k indices med lavest euclidean distance.
         dist = torch.cdist(data, data)
-
-        # For each node, pick the k closest other nodes.
-        # topk(..., largest=False) returns the smallest distances, and we skip column 0
-        # because the nearest point to every node is the node itself.
         knn_indices = torch.topk(dist, k=k_neighbors+1, largest=False).indices[:, 1:]
 
         for i in range(node_count):

@@ -1,79 +1,72 @@
 # %%
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 
 from DataLoader import DataLoader
+from EdgeSampler import sample_edges
 from GraphConstructor import GraphConstructor
-from LatentDistanceModel import LatentDistanceModel, LatentDistanceModelAI
+from LatentDistanceModel import LatentDistanceModel
 
-# %%
-# --- 1. Your Existing Setup ---
+# %% HYPERPARAMETERs
+subset_percent = 0.1
+k = 20  # K-nearest-neighbors
+lr = 0.05
+weight_decay = 1e-4
+batch_size = None  # Virker ekstremt dårligt ud fra tests. Skal nok bare undgås at bruge.
+patience = 50
+min_delta = 1e-4
+
 loader = DataLoader()
 constructor = GraphConstructor()
-X, y = loader.load_MNIST(subset_percent=0.1)
-adjacency_matrix = constructor.construct_knn(X, k_neighbors=5)
+X, y = loader.load_MNIST(subset_percent=subset_percent)
+adjacency_matrix = constructor.construct_knn(X, k_neighbors=k)
 
-# (For the sake of making this script runnable, assuming adjacency_matrix and y exist)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 adjacency_matrix = adjacency_matrix.to(device)
 
-num_nodes = adjacency_matrix.shape[0]
-ldm = LatentDistanceModelAI(num_nodes=num_nodes, data_labels=y, output_dimension=2).to(device)
-    
-# --- 2. Training Preparation ---
-# BCEWithLogitsLoss handles the Sigmoid conversion internally
+ldm = LatentDistanceModel(adjacency_matrix=adjacency_matrix, data_labels=y, output_dimension=2).to(device)
 loss_fn = nn.BCEWithLogitsLoss()
+optimizer = torch.optim.Adam(ldm.parameters(), lr=lr, weight_decay=weight_decay)
 
-# We add weight_decay (L2 Regularization) to stop the space from inflating infinitely
-optimizer = torch.optim.Adam(ldm.parameters(), lr=0.05, weight_decay=1e-4)
 
-# Extract the fixed indices of all true edges (the 1s)
-# We ignore the diagonal (self-loops) by ensuring sender != receiver
-edge_coords = torch.nonzero(adjacency_matrix == 1)
-edge_coords = edge_coords[edge_coords[:, 0] != edge_coords[:, 1]]
-
-pos_senders = edge_coords[:, 0]
-pos_receivers = edge_coords[:, 1]
-num_edges = len(pos_senders)
-
-# We create a 1D tensor of targets: half 1s (for edges) and half 0s (for non-edges)
-targets = torch.cat([
-    torch.ones(num_edges, device=device), 
-    torch.zeros(num_edges, device=device)
-])
-
-# --- 3. The Training Loop ---
+# %%
 epochs = 500
+best_loss = float("inf")
+stale_epochs = 0
+
+t0 = time.time()
 
 for epoch in range(epochs):
     optimizer.zero_grad()
-    
-    # 1. Negative Sampling
-    # Randomly pick 'num_edges' amount of senders and receivers
-    random_senders = torch.randint(0, num_nodes, (num_edges,), device=device)
-    random_receivers = torch.randint(0, num_nodes, (num_edges,), device=device)
-    
-    # 2. Combine true edges with the negative samples
-    batch_senders = torch.cat([pos_senders, random_senders])
-    batch_receivers = torch.cat([pos_receivers, random_receivers])
-    
-    # 3. Forward Pass (only on the selected pairs)
+
+    batch_senders, batch_receivers, targets = sample_edges(adjacency_matrix, batch_size=batch_size)
+
     logits = ldm(batch_senders, batch_receivers)
-    
-    # 4. Calculate Loss
+
     loss = loss_fn(logits, targets)
-    
-    # 5. Backpropagation
+
     loss.backward()
     optimizer.step()
-    
-    # 6. Logging
-    # print(f"Epoch {epoch:4d} | Loss: {loss.item():.4f} | Alpha: {ldm.alpha.item():.4f}")
+
     if epoch % 10 == 0:
         print(f"Epoch {epoch:4d} | Loss: {loss.item():.4f} | Alpha: {ldm.alpha.item():.4f}")
 
-# --- 4. Visualize Results ---
-ldm.visualize()
-# %%
+    if loss.item() < best_loss - min_delta:
+        best_loss = loss.item()
+        stale_epochs = 0
+    else:
+        stale_epochs += 1
+
+    if stale_epochs >= patience:
+        print(f"Early stopping at epoch {epoch}")
+        break
+
+elapsed = time.time() - t0
+print(f"Training took {elapsed:.2f}s")
+
+save_path = f"evals/subset {subset_percent}|k {k}|epochs {epoch}|batch_size {batch_size}|lr {lr}|wd{weight_decay}.jpg"
+ldm.visualize(save_path=save_path, show=False)

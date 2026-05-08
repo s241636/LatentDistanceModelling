@@ -10,3 +10,4 @@ optimal_model.md
 comparison.png
 .gitignore
 comparison.py
+*.png

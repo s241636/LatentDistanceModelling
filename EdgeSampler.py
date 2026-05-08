@@ -1,52 +1,53 @@
+# %%
+from functools import cache
+
+import numpy as np
 import torch
+import torch.nn as nn
 
-# AI-GENERATED
-# PROMPT (DeepSeek V4 Pro):
-# "Create a standalone helper function, for negative sampling. 
-# It should take an adjacency matrix, and return the senders recievers and targets. 
-# It should also be able to take a batch size, such that it doesn't train on the entire set of positive edges, but can also take a subsample of this.""
+from DataLoader import DataLoader
 
-def sample_edges(
-    adjacency_matrix: torch.Tensor,
-    batch_size: int | None = None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Sample positive and negative edges for training.
+# Data: N x D
+# - 70.000 x 784 (MNIST)
+# Distance: N x N
+# - Pairwise distance for alle vektorer
+# Sampling:
+# - K tætteste distances for hvert vektor (Konstant for alle vektorer, baseret på originalt latent space)
+# - K * negative_ratio for hvert vektor (Samples nye hver epoch, et sæt tilfældige neighbors til at )
+# - Alle vægtes med p_ij = exp(-(d_ij**2) / sigma**2)
+# Training:
+# - BCEWithLogits på alle de samplede vektorer, for alle 7000 vektorer.
+#   - p_ij = p_ji
 
-    Args:
-        adjacency_matrix: Binary adjacency matrix of shape (N, N).
-        batch_size: Number of positive edges to use. If None, all positive
-                    edges are used.
+# %%
+loader = DataLoader()
 
-    Returns:
-        senders: Indices of sender nodes, shape (2 * batch_size,).
-        receivers: Indices of receiver nodes, shape (2 * batch_size,).
-        targets: Binary labels (1=positive, 0=negative), shape (2 * batch_size,).
-    """
-    num_nodes = adjacency_matrix.shape[0]
-    device = adjacency_matrix.device
+@cache
+def get_distances(X: torch.Tensor) -> torch.Tensor:
+    return torch.cdist(X, X)
 
-    edge_coords = torch.nonzero(adjacency_matrix == 1)
-    edge_coords = edge_coords[edge_coords[:, 0] != edge_coords[:, 1]]
+# %%
+def sample_edges(distances: torch.Tensor, k: int, negative_ratio: float) -> tuple[torch.Tensor]:
+    negatives_count = round(k * negative_ratio)
+    pos_edges = distances.topk(k = k+1, largest=False).indices[:, 1:]
+    N = len(distances)
+    negative_edges = torch.empty(size=(N, negatives_count))
+    for idx, pos_edge in enumerate(pos_edges):
+        random_edges = torch.randint(low = 0, high = N, size = (1, negatives_count))
+        non_negative_edges = torch.cat((torch.tensor([idx]), pos_edge))
 
-    pos_senders = edge_coords[:, 0]
-    pos_receivers = edge_coords[:, 1]
+        # Continues drawing random numbers until random edges are not apart of the neighborhood, or the vector itself.
+        while torch.isin(random_edges, non_negative_edges).any():
+            random_edges = random_edges[~torch.isin(random_edges, non_negative_edges)]
+            new_random_edges = torch.randint(low=0, high=N, size=(1, negatives_count - len(random_edges)))
+            random_edges = torch.cat((random_edges, new_random_edges.flatten()))
+        negative_edges[idx] = random_edges
 
-    if batch_size is not None:
-        idx = torch.randperm(len(pos_senders), device=device)[:batch_size]
-        pos_senders = pos_senders[idx]
-        pos_receivers = pos_receivers[idx]
+    edges = torch.cat((pos_edges, negative_edges), dim=1).to(int)
+    edge_distances = torch.gather(distances, dim=1, index=edges)
+    
+    sigma = np.percentile(distances, q=10)
+    probs = torch.exp(-(edge_distances**2) / (sigma**2))
+    targets = torch.clip(probs, 1e-4, 0.95)
+    return edges, edge_distances, targets
 
-    num_pos = len(pos_senders)
-
-    neg_senders = torch.randint(0, num_nodes, (num_pos,), device=device)
-    neg_receivers = torch.randint(0, num_nodes, (num_pos,), device=device)
-
-    senders = torch.cat([pos_senders, neg_senders])
-    receivers = torch.cat([pos_receivers, neg_receivers])
-    targets = torch.cat([
-        torch.ones(num_pos, device=device),
-        torch.zeros(num_pos, device=device),
-    ])
-
-    return senders, receivers, targets

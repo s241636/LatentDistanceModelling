@@ -33,20 +33,22 @@ class LatentDistanceModel(nn.Module):
         nn.init.normal_(self.Z.weight, mean=0.0, std=0.1)
 
         # Alpha som også skal læres
-        self.alpha = nn.Parameter(torch.tensor(0.0))
+        # self.alpha = nn.Parameter(torch.tensor(0.0))
+        self.alpha = nn.Parameter(torch.zeros(self.num_nodes))
 
     def forward(self, edges: torch.Tensor) -> torch.Tensor:
-        # Embedded Space Distance Matricen, c_ij = |z_i - z_j|
+        # Embedded Space Distance Matricen, c_ij = |z_i2 - z_j|
 
         # Finder afstande fra alle nodes, til de udvalgte edges fra @sample_edges
         # Udregner afstande. Mere effektivt end N x N
         weights = self.Z.weight
         base_points = weights.unsqueeze(1)
         target_points = weights[edges]
-        sampled_embedded_dist = torch.linalg.norm(base_points - target_points, dim=-1)
+        sampled_embedded_dist = torch.linalg.norm(base_points - target_points, dim=-1) # N x (k + k*neg_ratio)
 
         # Logits er da bare alpha - |z_i - z_j| for alle z, og alle deres edges.
-        logits = self.alpha - sampled_embedded_dist
+        logits = (self.alpha.unsqueeze(1) + self.alpha[edges]) - sampled_embedded_dist
+        
         # Ideelt set er denne tilsvarende til target_probs fra @sample_edges?
         return logits
 

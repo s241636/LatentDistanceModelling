@@ -60,8 +60,8 @@ def sample_edges(
     base_points = X.unsqueeze(1)
     target_points = X[edge_indices]
     edge_distances = torch.linalg.norm(base_points - target_points, dim=-1)
-    
     # Udregner til sandsynligheder
-    probs = torch.exp(-(edge_distances**2) / (sigma**2))
+    probs = torch.exp(-(edge_distances) / (sigma))
+    # probs = torch.exp(-(edge_distances**2) / (sigma**2))
     target_probabilities = torch.clip(probs, 1e-4, 0.95)
     return edge_indices, edge_distances, target_probabilities

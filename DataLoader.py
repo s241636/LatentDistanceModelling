@@ -56,6 +56,7 @@ def load_swissroll(n_samples: int = 5000) -> tuple[np.ndarray]:
 def load_s_hole(n_samples=10_000, random_state=20200202) -> tuple[torch.Tensor]:
     X, t = make_s_curve(n_samples=n_samples, random_state=random_state)
 
+    # Gør hullet tydeligere?
     anchor = np.array([0, 1, 0])
     keep = np.sum((X - anchor) ** 2, axis=1) > 0.3
 
@@ -66,5 +67,3 @@ def load_s_hole(n_samples=10_000, random_state=20200202) -> tuple[torch.Tensor]:
 
 
 
-
-# %%

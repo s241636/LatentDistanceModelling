@@ -11,8 +11,6 @@ from torch import nn
 
 # %%
 #https://docs.pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
-
-
 class LatentDistanceModel(nn.Module):
     def __init__(
         self,
@@ -28,7 +26,7 @@ class LatentDistanceModel(nn.Module):
 
         # Embedding lag, har alle N datapunker, hvert med en position z i output_dimension space.
         self.Z = nn.Embedding(
-            num_embeddings=self.num_nodes, embedding_dim=output_dimension
+            num_embeddings=self.num_nodes, embedding_dim = output_dimension
         )
 
         # Initialiserer dem tilfældigt
@@ -40,10 +38,12 @@ class LatentDistanceModel(nn.Module):
     def forward(self, edges: torch.Tensor) -> torch.Tensor:
         # Embedded Space Distance Matricen, c_ij = |z_i - z_j|
 
-        embedded_dist = torch.cdist(self.Z.weight, self.Z.weight)
-
         # Finder afstande fra alle nodes, til de udvalgte edges fra @sample_edges
-        sampled_embedded_dist = torch.gather(embedded_dist, dim=1, index=edges)
+        # Udregner afstande. Mere effektivt end N x N
+        weights = self.Z.weight
+        base_points = weights.unsqueeze(1)
+        target_points = weights[edges]
+        sampled_embedded_dist = torch.linalg.norm(base_points - target_points, dim=-1)
 
         # Logits er da bare alpha - |z_i - z_j| for alle z, og alle deres edges.
         logits = self.alpha - sampled_embedded_dist

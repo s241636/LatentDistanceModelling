@@ -54,3 +54,26 @@ def construct_knn(data: torch.Tensor, k_neighbors: int, undirected: bool = False
         adjacency_matrix = torch.max(adjacency_matrix, adjacency_matrix.T)
 
     return adjacency_matrix
+
+def get_initial_parameters(data: torch.Tensor, k_neighbors: int) -> torch.Tensor:
+    """
+    Konstruerer en graf hvor hvert node vil have 'k' edges, gående til de tilhørende
+    k-nearest-neighbors i latent space.
+
+    Args:
+        data (torch.Tensor): Data tensor, forventes at være reshaped til (N, -1)
+        k_neighbors (int): Mængden af edges for hvert node, altså mængden af neighbors i latent space.
+        undirected (bool): Om grafen er directed eller ej. I tilfælde af undirected=True kan det ikke garanteres
+        at hvert node har 'k' edges, eftersom der kan blive tilføjet edges for at gør den symmetrisk. Er dog nok heller aldrig
+        optimalt at have grafen undirected. Bliver da til shared nearest neighbors
+
+    Returns:
+        np.ndarray: Adjacency matrix over grafen.
+    """
+    # Finder de k indices med lavest euclidean distance.
+    dist = torch.cdist(data, data)
+    knn_indices = torch.topk(dist, k=k_neighbors+1, largest=False).indices[:, 1:]
+    sigma = np.percentile(dist, q=10)  # Meget bedre med sigma for hele datasættet
+
+    return knn_indices, sigma
+

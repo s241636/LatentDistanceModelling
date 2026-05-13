@@ -8,9 +8,9 @@ import torch.nn as nn
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 
-from DataLoader import DataLoader
+from DataLoader import load_MNIST, load_s_hole, load_swissroll
 from EdgeSampler import get_distances, sample_edges
-from GraphConstructor import GraphConstructor
+from GraphConstructor import construct_knn
 from LatentDistanceModel import LatentDistanceModel
 
 # %% HYPERPARAMETER
@@ -22,16 +22,17 @@ negative_ratio = 10
 
 
 # %% MODEL
-loader = DataLoader()
-constructor = GraphConstructor()
-# X, y = loader.load_MNIST(subset_percent=subset_percent)
-X = loader.load_mammoth(subset_percent=subset_percent)
-print(len(X))
+
+
+X,y = load_swissroll(n_samples=5000)
 
 distances = get_distances(X)
-adjacency_matrix = constructor.construct_knn(X, k_neighbors=k, undirected=False)
+adjacency_matrix = construct_knn(X, k_neighbors=k, undirected=False)
 ldm = LatentDistanceModel(
-    adjacency_matrix=adjacency_matrix, output_dimension=2
+    data = X,
+    output_dimension=2,
+    data_labels=y,
+    
 )
 optimizer = torch.optim.Adam(ldm.parameters(), lr=lr, weight_decay=weight_decay)
 loss_fn = nn.BCEWithLogitsLoss()
@@ -58,7 +59,7 @@ for epoch in range(epochs):
         )
 
 
-ldm.visualize()
+ldm.visualize(datatype="swissroll", save_path="evals/model2/swissroll|n=5000|k=20|epoch=200")
 
 
-# %%
+

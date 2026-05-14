@@ -17,13 +17,13 @@ from utils import (
 k = 20  # K-nearest-neighbors
 lr = 0.05
 weight_decay = 1e-4
-negative_ratio = 10
+negative_ratio = 20
 
 # %% MODEL
-X,y = load_s_hole(n_samples=20000)
+X,y = load_swissroll(n_samples=20000)
 # X,y = load_MNIST(subset_percent=0.1)
 
-knn_indices, sigma = get_initial_parameters(X, k_neighbors=k)
+knn_indices, sigma = get_initial_parameters(X, k_neighbors=k, sigma_q=5)
 
 ldm = LatentDistanceModel(
     data = X,

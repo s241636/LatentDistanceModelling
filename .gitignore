@@ -11,3 +11,4 @@ comparison.png
 .gitignore
 comparison.py
 *.png
+codemap.md

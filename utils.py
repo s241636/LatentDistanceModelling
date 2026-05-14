@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from torchvision import datasets
 
 
-def get_initial_parameters(data: torch.Tensor, k_neighbors: int) -> torch.Tensor:
+def get_initial_parameters(data: torch.Tensor, k_neighbors: int, sigma_q: float) -> torch.Tensor:
     """
     Konstruerer en graf hvor hvert node vil have 'k' edges, gående til de tilhørende
     k-nearest-neighbors i latent space.
@@ -24,7 +24,7 @@ def get_initial_parameters(data: torch.Tensor, k_neighbors: int) -> torch.Tensor
     # Finder de k indices med lavest euclidean distance.
     dist = torch.cdist(data, data)
     knn_indices = torch.topk(dist, k=k_neighbors + 1, largest=False).indices[:, 1:]
-    sigma = np.percentile(dist, q=10)  # Meget bedre med sigma for hele datasættet
+    sigma = np.percentile(dist, q=sigma_q)  # Meget bedre med sigma for hele datasættet
 
     return knn_indices, sigma
 

@@ -12,3 +12,7 @@ comparison.png
 comparison.py
 *.png
 codemap.md
+/timelines
+timing_results_old.txt
+timing_results.txt
+log/profile/mac.students.clients.local_81638.1778739172905493000.pt.trace.json

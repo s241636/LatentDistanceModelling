@@ -68,7 +68,7 @@ class LatentDistanceModel(nn.Module):
                     plt.scatter(x, y, label=str(i), alpha=0.6, edgecolors="w")
                     plt.legend()
     
-            case "swissroll":
+            case "swissroll" | "s_hole":
                 assert self.data_labels is not None
                 plt.scatter(vis_data[:, 0], vis_data[:, 1], c=self.data_labels, edgecolors="w")
 
@@ -77,3 +77,4 @@ class LatentDistanceModel(nn.Module):
             plt.savefig(save_path)
         if show:
             plt.show()
+        plt.close()

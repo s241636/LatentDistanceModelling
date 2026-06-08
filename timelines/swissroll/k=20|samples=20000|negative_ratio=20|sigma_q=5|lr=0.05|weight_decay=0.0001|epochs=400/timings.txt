@@ -1,0 +1,9 @@
+--- Time breakdown Swiss Roll ---
+Hyperparams: k=20, negative_ratio=20, samples=20000, epochs=400
+Total Time:  310.601s
+edge sampling:  212.981s  (68.6%)
+forward pass:   29.574s  (9.5%)
+backward pass:  54.236s  (17.5%)
+optimizer step: 0.228s  (0.1%)
+Dense Distance Matrix(NxN): 4.732s  (1.5%)
+Other: 8.850s  (2.8%)

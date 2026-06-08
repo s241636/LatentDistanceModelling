@@ -1,0 +1,9 @@
+--- Time breakdown s_hole ---
+Hyperparams: k=20, negative_ratio=20, samples=20000, epochs=150
+Total Time:  171.629s
+edge sampling:  106.231s  (61.9%)
+forward pass:   16.967s  (9.9%)
+backward pass:  37.151s  (21.6%)
+optimizer step: 0.130s  (0.1%)
+Dense Distance Matrix(NxN): 6.696s  (3.9%)
+Other: 4.453s  (2.6%)

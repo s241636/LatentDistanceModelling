@@ -1,4 +1,0 @@
-Model0:
-    GraphConstruction: Standard knn
-    Standard ldm model
-    Variere k, subset_percent og om grafen er undirected eller directed.
